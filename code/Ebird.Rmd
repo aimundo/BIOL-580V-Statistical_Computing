@@ -1,0 +1,86 @@
+---
+title: "Ebird_data"
+author: "Ariel Mundo"
+date: "10/8/2021"
+output: html_document
+---
+
+**Note** For the `auk` package to work in Windows we need to download and install Cygwin.
+
+```{r,setup}
+library(here)
+library(ggplot2)
+library(tidyverse)
+library(auk)
+library(maps)
+library(gganimate)
+library(gifski)
+```
+
+Load data. Diable quoting to avoid a warning regarding quoted string.
+
+```{r,load-data}
+data<-read.csv(here("data/ebird.csv"),header=FALSE,sep="\t", quote="")
+
+data<-data%>%
+    separate(col=V2,into=c("Date_1","Time_1"),sep=' ')
+
+```
+
+## Data cleaning and preparation
+The file contains information about the Ebird Project.
+
+```{r,assessing data}
+head(data)
+```
+
+The dataset contains many columns that we might not be interested in. For example, the first column is an identifier, some columns are empty, and others have people's names in it. We are interested in the Common Name, Genus, Species Count, Location Name, Latitude, Longitude and observation date. We will first assign names to the columns we are interested in and then we will remove all other columns.
+
+```{r, column names}
+data_clean<-data %>%
+    rename(Common_name=V5,
+           Genus=V6, 
+           Species_Count=V9,
+           Country=V13,
+           Latitude=V26,
+           State=V15,
+           County=V17,
+           Longitude=V27,
+           Date_2=V28,
+           Start_time=V29, 
+           Type_obseration=V34)%>%
+    select(-contains("V"))
+
+data_clean$Date_1<-as.Date(data_clean$Date_1)
+    
+```
+
+Where are these observations being made?
+
+```{r,location}
+unique(data_clean$Country)
+unique(data_clean$State)
+```
+
+All observations are done within the state of NY! We only need the map for that State then.
+
+Now the coordinate data will be plotted over the state of NY.
+
+```{r,plotting}
+US_map<-map_data("county","new york")
+
+p<-ggplot()+geom_polygon(data=US_map,
+                      aes(x=long,y=lat,group=group),
+                      color="black",
+                      fill="lightblue")+
+    geom_point(data=data_clean,
+               aes(x=Longitude,y=Latitude))+
+    transition_time(data_clean$Date_1)+
+    labs(title="Year:{frame_time}")+
+    ease_aes('linear')+
+    enter_appear()+
+    exit_disappear()
+
+animate(p,fps=5,duration=40)
+
+```
