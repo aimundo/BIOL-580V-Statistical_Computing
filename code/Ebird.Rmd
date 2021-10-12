@@ -81,6 +81,9 @@ p<-ggplot()+geom_polygon(data=US_map,
     enter_appear()+
     exit_disappear()
 
-animate(p,fps=5,duration=40)
+anim<-animate(p,fps=5,duration=40)
 
 ```
+
+anim_save("ebird.gif",anim)
+
