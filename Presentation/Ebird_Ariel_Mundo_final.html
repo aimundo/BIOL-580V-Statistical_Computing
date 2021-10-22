@@ -1,23 +1,37 @@
 <!DOCTYPE html>
 <html lang="" xml:lang="">
   <head>
-    <title>Ebird dataset exploration</title>
+    <title>Ebird Data analysis</title>
     <meta charset="utf-8" />
     <meta name="author" content="Ariel Mundo" />
-    <script src="libs/header-attrs-2.11/header-attrs.js"></script>
-    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
-    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <script src="Ebird_Ariel_Mundo_final_files/header-attrs/header-attrs.js"></script>
+    <link href="Ebird_Ariel_Mundo_final_files/remark-css/default.css" rel="stylesheet" />
+    <link href="Ebird_Ariel_Mundo_final_files/panelset/panelset.css" rel="stylesheet" />
+    <script src="Ebird_Ariel_Mundo_final_files/panelset/panelset.js"></script>
+    <link href="Ebird_Ariel_Mundo_final_files/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="Ebird_Ariel_Mundo_final_files/tile-view/tile-view.js"></script>
+    <script src="Ebird_Ariel_Mundo_final_files/clipboard/clipboard.min.js"></script>
+    <link href="Ebird_Ariel_Mundo_final_files/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="Ebird_Ariel_Mundo_final_files/shareon/shareon.min.js"></script>
+    <link href="Ebird_Ariel_Mundo_final_files/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="Ebird_Ariel_Mundo_final_files/xaringanExtra-shareagain/shareagain.js"></script>
+    <link rel="stylesheet" href="css/mytheme.css" type="text/css" />
+    <link rel="stylesheet" href="css/mytheme-fonts.css" type="text/css" />
   </head>
   <body>
     <textarea id="source">
-class: center, middle, inverse, title-slide
 
-# Ebird dataset exploration
-## BIOL 580V
+name: about-me
+layout: false
+class: about-me-slide, inverse, middle, center
+
+# Ebird Data Exploration
 ### Ariel Mundo
-### BMEG
-### (updated: 2021-10-22)
 
+.blue[BIOL 580V &lt;br&gt; &lt;br&gt;
+Department of Biomedical Engineering&lt;br&gt;
+University of Arkansas&lt;br&gt; Fayetteville, AR, USA
+]
 ---
 
 
@@ -35,14 +49,14 @@ These are the steps I took to analyze the data:
 
 - Visualization
 
-
-
-
 ---
-## Loading the data
+## Loading and cleaning the data
 
 - Load data, the separator for the data was tab or "\t".
+- The dataset contains many columns that we might not be interested in. I was interested in the Common Name, Genus, Species Count, Location Name, Latitude, Longitude and observation date.
 
+.panelset[
+.panel[.panel-name[Loading data]
 
 ```r
 data&lt;-read.csv(here("data/ebird.csv"),header=FALSE,sep="\t", quote="")
@@ -50,50 +64,51 @@ data&lt;-read.csv(here("data/ebird.csv"),header=FALSE,sep="\t", quote="")
 data&lt;-data%&gt;%
     separate(col=V2,into=c("Date_1","Time_1"),sep=' ')
 ```
+]
 
---
-
-## Data cleaning and preparation
-The file contains information about the Ebird Project.
-
-
-
-- The dataset contains many columns that we might not be interested in. I was interested in the Common Name, Genus, Species Count, Location Name, Latitude, Longitude and observation date.
----
-
-## Data Cleaning
-
-**Since there are no headers in this dataset, I will assume that the 9th column of the original dataset (which has been renamed as Species_Count) contains the number of observations for each species.** 
-
-Next, I set the "Date" column with a date format. And finally, I made the "Species_Count" column numeric, which changed all the "X" (which I am assuming are missing observations) to _NA_.
-
---
+.panel[.panel-name[Dataset head]
 
 
 ```r
-data_clean&lt;-data %&gt;%
-    rename(Common_name=V5,
-           Genus=V6, 
-           Species_Count=V9,
-           Country=V13,
-           Latitude=V26,
-           State=V15,
-           County=V17,
-           Longitude=V27,
-           Date_2=V28,
-           Start_time=V29, 
-           Type_obseration=V34)%&gt;%
-    select(-contains("V"))
-
-data_clean$Date_1&lt;-as.Date(data_clean$Date_1)
-data_clean$Species_Count&lt;-as.numeric(data_clean$Species_Count)
+head(data,n =3)
 ```
+
+```
+##                                              V1     Date_1   Time_1    V3      V4                   V5
+## 1 URN:CornellLabOfOrnithology:EBIRD:OBS61941867 2013-03-08 15:36:52 26621 species    European Starling
+## 2 URN:CornellLabOfOrnithology:EBIRD:OBS48090318 2014-01-22 16:28:47 21939 species Ruby-crowned Kinglet
+## 3 URN:CornellLabOfOrnithology:EBIRD:OBS48090321 2014-01-22 16:28:47 27956 species      Prairie Warbler
+##                   V6 V7 V8 V9 V10 V11 V12           V13 V14      V15   V16    V17       V18        V19 V20 V21 V22
+## 1   Sturnus vulgaris        3          NA United States  US New York US-NY  Wayne US-NY-117 US-NY_1726  13      NA
+## 2  Regulus calendula        1          NA United States  US New York US-NY Oswego US-NY-075             13      NA
+## 3 Setophaga discolor        1          NA United States  US New York US-NY Oswego US-NY-075             13      NA
+##                        V23     V24 V25      V26       V27        V28      V29        V30   V31       V32      V33
+## 1 Montezuma Audubon Center L349018   H 43.09212 -76.76412 2008-08-31 12:15:00 obsr108846 Shawn Billerman S4493459
+## 2           Baum Road yard L266171   P 43.34125 -76.11842 1998-09-07           obsr14521  Bill   Purcell S3506984
+## 3           Baum Road yard L266171   P 43.34125 -76.11842 1998-09-07           obsr14521  Bill   Purcell S3506984
+##                          V34   V35 V36   V37 V38 V39 V40    V41 V42 V43 V44 V45 V46 V47 V48
+## 1    eBird - Traveling Count EBIRD  20 0.322  NA   4   1 G95943   0   1   0  NA          NA
+## 2 eBird - Casual Observation EBIRD  NA    NA  NA   1   0          0   1   0  NA          NA
+## 3 eBird - Casual Observation EBIRD  NA    NA  NA   1   0          0   1   1  NA          NA
+```
+]
+]
+
 ---
+## Data Cleaning
 
-## Quick data exploration
+.green[Since there are no headers in this dataset, I assumed that the 9th column of the original dataset (which has been renamed as Species_Count) contains the number of observations for each species.]
 
-Where are these observations being made? And how  many different species of birds there are in the dataset?
+- I set the "Date" column with a date format, and make "Species_Count" column numeric.
 
+
+
+--
+
+- Where are these observations being made? And how  many different species of birds there are in the dataset?
+
+.panelset[
+.panel[.panel-name[Country]
 
 ```r
 Country&lt;-unique(data_clean$Country)
@@ -103,6 +118,9 @@ Country
 ```
 ## [1] "United States"
 ```
+]
+
+.panel[.panel-name[State]
 
 ```r
 State&lt;-unique(data_clean$State)
@@ -112,6 +130,8 @@ State
 ```
 ## [1] "New York"
 ```
+]
+.panel[.panel-name[Number of species]
 
 ```r
 all_species&lt;-length(unique(data_clean$Genus))
@@ -121,26 +141,20 @@ all_species
 ```
 ## [1] 408
 ```
-
---
-
-All observations are done within the state of NY! But there are 408 different species of birds. Visualizing such high number would be too complicated. For the scope of this project, I will choose the 5 species with the highest number of counts in the dataset. 
+]
+]
 
 ---
 ## Quick data exploration
 
-I grouped the data by _Genus_, and counted the number of occurrences of each Genus. Then, I ordered the observations in descending order and finally, I picked the top 5 rows.
+- All observations are done within the state of NY, 408 different species
+- I chose 5 species with the highest number of counts in the dataset. 
 
+I grouped the data by _Genus_, and counted the number of occurrences. Then, picked the top 5 rows.The most common bird found in the dataset is the American Crow.
 
-```r
-top_species&lt;-na.omit(data_clean) %&gt;%
-    group_by(Genus) %&gt;%
-    summarize(Count=n()) %&gt;%
-    arrange(desc(Count)) %&gt;%
-    slice_head(n=5)
-   
-top_species
-```
+--
+.panelset[
+.panel[.panel-name[Results]
 
 ```
 ## # A tibble: 5 x 2
@@ -152,74 +166,45 @@ top_species
 ## 4 Cyanocitta cristata    1038
 ## 5 Zenaida macroura       1005
 ```
-
---
-
-This result makes sense, the most common bird found in the dataset is the American Crow, followed by the Black-capped chickadee and the American robin, among others. Finally, I saved the top 5 species as a new dataset.
+]
+]
 
 
 
 ---
 ## Plotting the data
 
-- I decided to plot the count per each type of bird using the {ggplot} and {maps} libraries, and then make an animation to see how the spatial location changes over time.
+.pull-left[
+- I decided to plot the count per each type of bird using the {ggplot} and {maps} packages.
+
+- Later, animated using the  {gganimate} package to see how bird sightings change over time.
+
+- The result is this animation: bird sightings have been recorded for crows, bluejays, robins, Black-capped Chickadees and Mourning doves.
+]
+
+.pull-right[![:scale 100%](ebird_updated.gif)]
 
 
 
---
-
--The animation was made using the package `gganimate` to see how bird sightings change over time for the top 5 species. The size of each point was proportional to the count of species in order to better visualize the changes over time.
 
 
-```r
-#animation 
-bird_map_2&lt;-ny_map+
-    geom_point(data= top_species_data,
-               inherit.aes = FALSE,
-               aes(x=Longitude,
-                   y=Latitude,
-                   col=Common_name,
-                   size=Species_Count
-                   ),
-                alpha=0.5
-    )+
-    scale_size(trans="log10")+
-    scale_color_viridis_d()+
-    guides(colour = guide_legend(override.aes = list(size=10)))+
-    theme(legend.text=element_text(size=20),
-          legend.title=element_blank(),
-          plot.title=element_text(size=20))+
-    transition_time(top_species_data$Date_1)+
-    labs(title="Date:{frame_time}")+
-    ease_aes('linear')+
-    enter_appear()+
-    exit_disappear()
 
-anim&lt;-animate(bird_map_2,fps=1, duration=60, height=600, width=800)
-anim_save("ebird_updated.gif",anim)
-```
-
----
-
-## The animation
-
-The result is this animation, which shows how bird sightings have been recorded for crows, bluejays, robins, Black-capped Chickadees and Mourning doves.
-
-![](ebird_updated.gif)
 ---
 
 ## Future work
 
 - I would like to include more species in the analysis
 
-- A more relevant analysis could be achieved by using a 3-D map animation that shows where birds are being sighted with the inclusion of terrain data.
-
+- Also implement  a 3-D map animation that shows where birds are being sighted with the inclusion of terrain data.
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="macros.js"></script>
 <script>var slideshow = remark.create({
+"slideNumberFormat": "%current%",
 "highlightStyle": "github",
 "highlightLines": true,
+"ratio": "16:9",
 "countIncrementalSlides": false
 });
 if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {

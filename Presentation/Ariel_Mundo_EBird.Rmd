@@ -3,7 +3,7 @@ title: "Ebird dataset exploration"
 subtitle: "BIOL 580V"
 author: "Ariel Mundo"
 institute: "BMEG"
-date: "2016/12/12 (updated: `r Sys.Date()`)"
+date: "(updated: `r Sys.Date()`)"
 output:
   xaringan::moon_reader:
     lib_dir: libs
@@ -13,11 +13,22 @@ output:
       countIncrementalSlides: false
 ---
 
+## Introduction
+
 This presentation shows the work done to analyze the Ebird dataset, which was provided in the BIOL 580V course.
 
-First, I will load the required packages.
+These are the steps I took to analyze the data:
 
-```{r,setup,warning=FALSE}
+- Load libraries for plotting and data cleaning
+
+- Data cleaning
+
+- Quick analysis to decide direction of analysis
+
+- Visualization
+
+
+```{r,setup,warning=FALSE, include=FALSE}
 library(here)
 library(ggplot2)
 library(tidyverse)
@@ -28,9 +39,11 @@ library(viridis)
 
 knitr::opts_chunk$set(warning=FALSE)
 ```
---
 
-Next I will load data. Disabled quoting to avoid a warning regarding quoted string.
+---
+## Loading and cleaning the data
+
+- Load data, the separator for the data was tab or "\t".
 
 ```{r,load-data}
 data<-read.csv(here("data/ebird.csv"),header=FALSE,sep="\t", quote="")
@@ -40,25 +53,22 @@ data<-data%>%
 
 ```
 
----
+--
+- The dataset contains many columns that we might not be interested in. I was interested in the Common Name, Genus, Species Count, Location Name, Latitude, Longitude and observation date.
 
-## Data cleaning and preparation
-The file contains information about the Ebird Project.
-
-```{r,assessing data}
-head(data)
+```{r,assessing-data, include=FALSE}
+head(data,n =3)
 ```
 
-The dataset contains many columns that we might not be interested in. For example, the first column is an identifier, some columns are empty, and others have people's names in it. We are interested in the Common Name, Genus, Species Count, Location Name, Latitude, Longitude and observation date. We will first assign names to the columns we are interested in and then we will remove all other columns.
 
 ---
+
+## Data Cleaning
 
 **Since there are no headers in this dataset, I will assume that the 9th column of the original dataset (which has been renamed as Species_Count) contains the number of observations for each species.** 
 
-Next, we will set the "Date" column with a date format. And finally, we will make the "Species_Count" column numeric, which will automatically change all the "X" (which I am assuming are missing observations) to _NA_.
-
+Next, I set the "Date" column with a date format. And finally, I made the "Species_Count" column numeric, which changed all the "X" (which I am assuming to be missing observations) to _NA_.
 --
-
 ```{r, column names}
 data_clean<-data %>%
     rename(Common_name=V5,
@@ -79,7 +89,7 @@ data_clean$Species_Count<-as.numeric(data_clean$Species_Count)
 ```
 ---
 
-## Data exploration
+## Quick data exploration
 
 Where are these observations being made? And how  many different species of birds there are in the dataset?
 
@@ -99,8 +109,9 @@ all_species
 All observations are done within the state of NY! But there are 408 different species of birds. Visualizing such high number would be too complicated. For the scope of this project, I will choose the 5 species with the highest number of counts in the dataset. 
 
 ---
+## Quick data exploration
 
-First, I will make sure that no _NAs_ are included in the count (I believe this is already being taken care of by {dyplr} but better safe than sorry). Next, I will group the data by _Genus_, and count the number of occurrences of each Genus. Then, I will order the observations in descending order and finally, I will pick the top ten rows.
+I grouped the data by _Genus_, and counted the number of occurrences of each Genus. Then, I ordered the observations in descending order and finally, I picked the top 5 rows.
 
 ```{r, most-common-species}
 top_species<-na.omit(data_clean) %>%
@@ -114,23 +125,19 @@ top_species
 
 --
 
-This result makes sense, the most common bird found in the dataset is the American Crow, followed by the Black-capped chickadee and the American robin, among others. Finally, I will save the top 10 species as a new dataset.
+This result makes sense, the most common bird found in the dataset is the American Crow, followed by the Black-capped chickadee and the American robin, among others. Finally, I saved the top 5 species as a new dataset.
 
----
-
-```{r,top_species_data}
+```{r,top_species_data, include=FALSE}
 top_species_data<-na.omit(subset(data_clean,data_clean$Genus==top_species$Genus))
 top_species_data$Genus<-as.factor(top_species_data$Genus)
 ```
 
-Now the coordinate data will be plotted over the state of NY.
-
 ---
 ## Plotting the data
 
-First we need to create a map of NY, which will be created using the {ggplot} and {maps} libraries. 
+- I decided to plot the count per each type of bird using the {ggplot} and {maps} libraries, and then make an animation to see how the spatial location changes over time.
 
-```{r,plotting, eval=FALSE}
+```{r,plotting, eval=FALSE, include=FALSE}
 
 US_map<-map_data("county","New York")
 ny_map<-ggplot(data=US_map,
@@ -143,9 +150,9 @@ ny_map<-ggplot(data=US_map,
 
 ```
 
----
+--
 
-Now we add on top the bird observations. I will make an animation using the package `gganimate` to see how bird sightings change over time for the top 5 species. The size of each point will be proportional to the count of species in order to better visualize the changes over time.
+-The animation was made using the package `gganimate` to see how bird sightings change over time for the top 5 species. The size of each point was proportional to the count of species in order to better visualize the changes over time.
 
 ```{r,animation, eval=FALSE}
 #animation 
@@ -182,3 +189,11 @@ anim_save("ebird_updated.gif",anim)
 The result is this animation, which shows how bird sightings have been recorded for crows, bluejays, robins, Black-capped Chickadees and Mourning doves.
 
 ![](ebird_updated.gif)
+---
+
+## Future work
+
+- I would like to include more species in the analysis
+
+- A more relevant analysis could be achieved by using a 3-D map animation that shows where birds are being sighted with the inclusion of terrain data.
+
