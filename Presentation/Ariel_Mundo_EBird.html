@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Ebird dataset exploration</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Ariel Mundo" />
+    <script src="libs/header-attrs-2.10/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Ebird dataset exploration
+## BIOL 580V
+### Ariel Mundo
+### BMEG
+### 2016/12/12 (updated: 2021-10-21)
+
+---
+
+
+This presentation shows the work done to analyze the Ebird dataset, which was provided in the BIOL 580V course.
+
+First, I will load the required packages.
+
+
+```r
+library(here)
+```
+
+```
+## here() starts at C:/Users/aimundo/Documents/BIOL-580V-Statistical_Computing
+```
+
+```r
+library(ggplot2)
+library(tidyverse)
+```
+
+```
+## -- Attaching packages --------------------------------------- tidyverse 1.3.1 --
+```
+
+```
+## v tibble  3.1.1     v dplyr   1.0.6
+## v tidyr   1.1.3     v stringr 1.4.0
+## v readr   1.4.0     v forcats 0.5.1
+## v purrr   0.3.4
+```
+
+```
+## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+```
+
+```r
+library(maps)
+```
+
+```
+## 
+## Attaching package: 'maps'
+```
+
+```
+## The following object is masked from 'package:purrr':
+## 
+##     map
+```
+
+```r
+library(gganimate)
+library(gifski)
+library(viridis)
+```
+
+```
+## Loading required package: viridisLite
+```
+
+```
+## 
+## Attaching package: 'viridis'
+```
+
+```
+## The following object is masked from 'package:viridisLite':
+## 
+##     viridis.map
+```
+
+```r
+knitr::opts_chunk$set(warning=FALSE)
+```
+--
+
+Next I will load data. Disabled quoting to avoid a warning regarding quoted string.
+
+
+```r
+data&lt;-read.csv(here("data/ebird.csv"),header=FALSE,sep="\t", quote="")
+
+data&lt;-data%&gt;%
+    separate(col=V2,into=c("Date_1","Time_1"),sep=' ')
+```
+
+---
+
+## Data cleaning and preparation
+The file contains information about the Ebird Project.
+
+
+```r
+head(data)
+```
+
+```
+##                                              V1     Date_1   Time_1    V3
+## 1 URN:CornellLabOfOrnithology:EBIRD:OBS61941867 2013-03-08 15:36:52 26621
+## 2 URN:CornellLabOfOrnithology:EBIRD:OBS48090318 2014-01-22 16:28:47 21939
+## 3 URN:CornellLabOfOrnithology:EBIRD:OBS48090321 2014-01-22 16:28:47 27956
+## 4 URN:CornellLabOfOrnithology:EBIRD:OBS61941875 2013-03-08 15:36:52 24482
+## 5 URN:CornellLabOfOrnithology:EBIRD:OBS61941872 2013-03-08 15:36:52   396
+## 6 URN:CornellLabOfOrnithology:EBIRD:OBS61941878 2013-03-08 15:36:52 30338
+##        V4                   V5                    V6 V7 V8 V9 V10 V11 V12
+## 1 species    European Starling      Sturnus vulgaris        3          NA
+## 2 species Ruby-crowned Kinglet     Regulus calendula        1          NA
+## 3 species      Prairie Warbler    Setophaga discolor        1          NA
+## 4 species     Eastern Bluebird         Sialia sialis        X          NA
+## 5 species              Mallard    Anas platyrhynchos        X          NA
+## 6 species             Bobolink Dolichonyx oryzivorus        X          NA
+##             V13 V14      V15   V16    V17       V18        V19 V20 V21 V22
+## 1 United States  US New York US-NY  Wayne US-NY-117 US-NY_1726  13      NA
+## 2 United States  US New York US-NY Oswego US-NY-075             13      NA
+## 3 United States  US New York US-NY Oswego US-NY-075             13      NA
+## 4 United States  US New York US-NY  Wayne US-NY-117 US-NY_1726  13      NA
+## 5 United States  US New York US-NY  Wayne US-NY-117 US-NY_1726  13      NA
+## 6 United States  US New York US-NY  Wayne US-NY-117 US-NY_1726  13      NA
+##                        V23     V24 V25      V26       V27        V28      V29
+## 1 Montezuma Audubon Center L349018   H 43.09212 -76.76412 2008-08-31 12:15:00
+## 2           Baum Road yard L266171   P 43.34125 -76.11842 1998-09-07         
+## 3           Baum Road yard L266171   P 43.34125 -76.11842 1998-09-07         
+## 4 Montezuma Audubon Center L349018   H 43.09212 -76.76412 2008-08-31 12:15:00
+## 5 Montezuma Audubon Center L349018   H 43.09212 -76.76412 2008-08-31 12:15:00
+## 6 Montezuma Audubon Center L349018   H 43.09212 -76.76412 2008-08-31 12:15:00
+##          V30   V31       V32      V33                        V34   V35 V36
+## 1 obsr108846 Shawn Billerman S4493459    eBird - Traveling Count EBIRD  20
+## 2  obsr14521  Bill   Purcell S3506984 eBird - Casual Observation EBIRD  NA
+## 3  obsr14521  Bill   Purcell S3506984 eBird - Casual Observation EBIRD  NA
+## 4 obsr108846 Shawn Billerman S4493459    eBird - Traveling Count EBIRD  20
+## 5 obsr108846 Shawn Billerman S4493459    eBird - Traveling Count EBIRD  20
+## 6 obsr108846 Shawn Billerman S4493459    eBird - Traveling Count EBIRD  20
+##     V37 V38 V39 V40    V41 V42 V43 V44 V45 V46 V47 V48
+## 1 0.322  NA   4   1 G95943   0   1   0  NA          NA
+## 2    NA  NA   1   0          0   1   0  NA          NA
+## 3    NA  NA   1   0          0   1   1  NA          NA
+## 4 0.322  NA   4   1 G95943   0   1   0  NA          NA
+## 5 0.322  NA   4   1 G95943   0   1   0  NA          NA
+## 6 0.322  NA   4   1 G95943   0   1   0  NA          NA
+```
+
+The dataset contains many columns that we might not be interested in. For example, the first column is an identifier, some columns are empty, and others have people's names in it. We are interested in the Common Name, Genus, Species Count, Location Name, Latitude, Longitude and observation date. We will first assign names to the columns we are interested in and then we will remove all other columns.
+
+---
+
+**Since there are no headers in this dataset, I will assume that the 9th column of the original dataset (which has been renamed as Species_Count) contains the number of observations for each species.** 
+
+Next, we will set the "Date" column with a date format. And finally, we will make the "Species_Count" column numeric, which will automatically change all the "X" (which I am assuming are missing observations) to _NA_.
+
+--
+
+
+```r
+data_clean&lt;-data %&gt;%
+    rename(Common_name=V5,
+           Genus=V6, 
+           Species_Count=V9,
+           Country=V13,
+           Latitude=V26,
+           State=V15,
+           County=V17,
+           Longitude=V27,
+           Date_2=V28,
+           Start_time=V29, 
+           Type_obseration=V34)%&gt;%
+    select(-contains("V"))
+
+data_clean$Date_1&lt;-as.Date(data_clean$Date_1)
+data_clean$Species_Count&lt;-as.numeric(data_clean$Species_Count)
+```
+---
+
+## Data exploration
+
+Where are these observations being made? And how  many different species of birds there are in the dataset?
+
+
+```r
+Country&lt;-unique(data_clean$Country)
+Country
+```
+
+```
+## [1] "United States"
+```
+
+```r
+State&lt;-unique(data_clean$State)
+State
+```
+
+```
+## [1] "New York"
+```
+
+```r
+all_species&lt;-length(unique(data_clean$Genus))
+all_species
+```
+
+```
+## [1] 408
+```
+
+--
+
+All observations are done within the state of NY! But there are 408 different species of birds. Visualizing such high number would be too complicated. For the scope of this project, I will choose the 5 species with the highest number of counts in the dataset. 
+
+---
+
+First, I will make sure that no _NAs_ are included in the count (I believe this is already being taken care of by {dyplr} but better safe than sorry). Next, I will group the data by _Genus_, and count the number of occurrences of each Genus. Then, I will order the observations in descending order and finally, I will pick the top ten rows.
+
+
+```r
+top_species&lt;-na.omit(data_clean) %&gt;%
+    group_by(Genus) %&gt;%
+    summarize(Count=n()) %&gt;%
+    arrange(desc(Count)) %&gt;%
+    slice_head(n=5)
+   
+top_species
+```
+
+```
+## # A tibble: 5 x 2
+##   Genus                 Count
+##   &lt;chr&gt;                 &lt;int&gt;
+## 1 Corvus brachyrhynchos  1205
+## 2 Poecile atricapillus   1128
+## 3 Turdus migratorius     1071
+## 4 Cyanocitta cristata    1038
+## 5 Zenaida macroura       1005
+```
+
+--
+
+This result makes sense, the most common bird found in the dataset is the American Crow, followed by the Black-capped chickadee and the American robin, among others. Finally, I will save the top 10 species as a new dataset.
+
+---
+
+
+```r
+top_species_data&lt;-na.omit(subset(data_clean,data_clean$Genus==top_species$Genus))
+top_species_data$Genus&lt;-as.factor(top_species_data$Genus)
+```
+
+Now the coordinate data will be plotted over the state of NY.
+
+---
+## Plotting the data
+
+First we need to create a map of NY, which will be created using the {ggplot} and {maps} libraries. 
+
+
+```r
+US_map&lt;-map_data("county","New York")
+ny_map&lt;-ggplot(data=US_map,
+               mapping=aes(x=long,
+                           y=lat,group=group)
+               )+geom_polygon(color="black",
+                              fill="gray")+
+    geom_polygon(data=US_map,fill=NA,color="white")+
+    theme_void()
+```
+
+---
+
+Now we add on top the bird observations. I will make an animation using the package `gganimate` to see how bird sightings change over time for the top 5 species. The size of each point will be proportional to the count of species in order to better visualize the changes over time.
+
+
+```r
+#animation 
+bird_map_2&lt;-ny_map+
+    geom_point(data= top_species_data,
+               inherit.aes = FALSE,
+               aes(x=Longitude,
+                   y=Latitude,
+                   col=Common_name,
+                   size=Species_Count
+                   ),
+                alpha=0.5
+    )+
+    scale_size(trans="log10")+
+    scale_color_viridis_d()+
+    guides(colour = guide_legend(override.aes = list(size=10)))+
+    theme(legend.text=element_text(size=20),
+          legend.title=element_blank(),
+          plot.title=element_text(size=20))+
+    transition_time(top_species_data$Date_1)+
+    labs(title="Date:{frame_time}")+
+    ease_aes('linear')+
+    enter_appear()+
+    exit_disappear()
+
+anim&lt;-animate(bird_map_2,fps=1, duration=60, height=600, width=800)
+anim_save("ebird_updated.gif",anim)
+```
+
+---
+
+## The animation
+
+The result is this animation, which shows how bird sightings have been recorded for crows, bluejays, robins, Black-capped Chickadees and Mourning doves.
+
+![](ebird_updated.gif)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
