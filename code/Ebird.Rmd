@@ -19,6 +19,7 @@ library(maps)
 library(gganimate)
 library(gifski)
 library(viridis)
+library(rayshader)
 ```
 
 Next I will load data. Disabled quoting to avoid a warning regarding quoted string.
@@ -135,6 +136,23 @@ bird_map<-ny_map+
     
     
                
+bird_map
+
+##using density (for rayshader)
+bird_map<-ny_map+
+    geom_point(data= top_species_data,
+               inherit.aes = FALSE,
+               aes(x=Longitude,
+                   y=Latitude,
+                   col=Common_name,
+                   size=Species_Count
+                   ),
+                alpha=0.5
+    )+
+    scale_color_viridis_d()+
+    theme(legend.text=element_text(size=20),
+          legend.title=element_blank())
+
 bird_map
 
 
