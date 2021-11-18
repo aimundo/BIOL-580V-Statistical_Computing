@@ -1,0 +1,411 @@
+---
+title: "Gene analysis"
+subtitle: "Using the Pfaffl method with ratio-wise calculations for all samples CG-MTD-MG"
+author: "Ariel Mundo"
+date: "3/30/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,setup,include=FALSE,message=FALSE,echo=FALSE}
+library(here)
+library(tidyverse)
+library(broom)
+library(ggforce)
+library(scico)
+library(viridis)
+library(patchwork)
+library(svglite) #to save svg figures
+```
+
+
+First I will load the data, remove outliers and missing observations, and calculate average Cq values for each sample.
+
+```{r,data-setup-clean}
+data<-read.csv(here('data/All_samples_with_average_effs_for_all_plates_2021.csv'))
+#remove rows where Cq=NaN
+data<-data %>% filter(Cq!='NaN')
+data<-data %>%filter(SAMPLE!=57) #to remove sample 57 that seems to be an outlier
+data$GENE<-as.factor(data$GENE)
+data$GENERAL_GROUP<-as.factor(data$GENERAL_GROUP)
+
+
+#Calculating average Cq per sample per gene
+data1<-data %>%
+    filter(GENERAL_GROUP %in% c('CG','MG','MTD')) %>%
+    group_by(ID,GENE,WEEK) %>%
+    mutate(mean_Cq=mean(Cq),Cq_SD=sd(Cq)) %>%
+    filter(duplicated(mean_Cq)==FALSE)
+
+```
+
+*Seems I made a mistake in the original calculations. Now the Pfaffl method will be used and the data re-assessed*
+
+This document explains the steps taken to calculate the relative expression in the biopsy tumor samples, using RT-qPCR.However, compared to the document "Pfaffl revised" this document will use ratio-wise comparisons in order to be able to add the data from new tumors. The equations will be re-written in a ratio-wise format and results will be plotted again to double check that they are consistent with those from the  "Pfaffl-revised" document.
+
+The original dataset contains information regarding:
+
+* The animal ID (ID)
+
+* GROUP, animals were staggered through the study within the treatment groups (see GENERAL_GROUP below). For example, an animal that was within the control group (CG) but was in the first sub-group would be in group CG1.
+
+* POLYP (tumor) number (these were numbered starting from the proximal to the distal side of the colon) 
+
+* LOCATION, the location of the tumor in the colon following a clockwise nomenclature
+
+* SAMPLE, the number of tube where each biopsy was stored. This was done because in some cases, multiple biopsies were taken from the same animal in the same day. 
+
+* WEEK, the time within the 6-week period of the study that the samples were obtained
+
+* NOTES, that usually indicate the size of the sample, or any other pertinent observations.
+
+* GENERAL_GROUP is the group that the mouse belongs to. Mice could be in either metronomic (MG) or control (CG) groups.
+
+* TECHNICAL_REP is the technical replicate in the qPCR plate for each sample. Samples were analyzed in triplicates and therefore there are 3 technical replicates per sample.
+
+* GENE, the gene from which the results were obtained. Genes can be: VEGFA, ALDOA, PGK1,HIF-1A,RPTOR, DEK, GAPDH and TBP (the last two used as reference genes).
+
+* WELL the well in the qPCR plate where each sample was located.
+
+* CONCENTRATION this column is only used for the data of the standard curves within each plate and indicates the concentrations used to create the standard curves. Concentrations are: 1, 1:5, 1:25, 1:125, 1:625, 1:3125 and blank.
+
+* Cq, the threshold cycle for each sample.
+
+
+IMPORTANT CHANGE:
+
+We have agreed to use a single efficiency per gene, regardless of the plate. I will create a dataframe to store the efficiencies I got for the plates in 2020, and paste these values recursively in the dataframe that contains the sample Cq values (`data`).
+
+```{r,paste-eff}
+#create dataframe
+avg_effs<-tibble("GENE"=as.factor(c("VEGFA",
+                           "GAPDH",
+                           "HIF-1a",
+                           "RPTOR",
+                           "DEK",
+                           "ALDOA",
+                           "PGK1",
+                           "STAT3")),
+                 "Eff"=c(1.97853947,
+                         1.96252309,
+                         2.0172954,
+                         1.994233037,
+                         1.98612065,
+                         1.97435611,
+                         1.91996324,
+                         1.93909892)
+                 )
+
+#paste eff. values in the original dataframe
+#using left_join: (x,y) ==> returns all rows from x and all columns from x and y. 
+data1<-data1 %>%
+    left_join(avg_effs,data1,by="GENE")
+
+```
+
+
+*Once the data from the standard curves is ready, the next step concerns the treatment of the Cq values per each sample.*
+
+...
+
+Then, the average of _Cq_ is calculated for all the technical replicates for each sample, and the data from the standard curves in the original dataset is removed. The average _Cq_ is stored as the new variable _mean_Cq. 
+
+_This dataframe consists of 27 samples ran using 9 genes, but the TBP plate was not run for the second batch of samples, therefore the total number of observations does not match the patter 27*3*9=729 but rather 27*3*8+63=711 because the second batch of samples (6) were not analyzed for TBP expression._
+
+
+**Here is where the main change happens compared to the Pfaffl-revised document**
+
+The following steps are taken from:
+https://toptipbio.com/pfaffl-method-qpcr/#:~:text=The%20Pfaffl%20method%2C%20named%20after,for%20differences%20in%20primer%20efficiencies.
+
+The equation for expression ratio is:
+
+$$
+Expression \space ratio=\frac{Efficiency_{Target}^{\Delta Cq\space Target}}{Efficiency_{Reference}^{\Delta Cq\space Reference}}
+$$
+Where $$ \Delta C_q =Control \space average - Mean \space C_q \space per \space sample $$
+
+
+This equation assumes equal efficiencies for the target and control samples, and that is why the calculation is done by subtracting the exponent. If the efficiencies are different, however, the equation becomes
+
+
+$Expression  \space ratio=\frac{\frac{E^{Control \space average \space Target}}{E^{Mean\space Cq \space sample}}}{\frac{E^{Control \space average \space Reference}}{E^{Mean \space Cq \space Reference}}}$
+
+
+In this case because I have decided to use the mean value of the Control Group (CG) at week 1 as the 'Control', this means that the average expression required for CG at week 1 for VEGF is:
+
+$$
+Mean \space expression \space for \space VEGF= \frac{E^{Average \space Cq \space sample \space 1 }_{sample \space 1} + E^{Average \space Cq \space sample \space 2}_{sample \space 2}+...+E^{Average \space Cq \space sample \space n}_{sample \space n}}{n}
+$$
+
+Where all the samples need to be from CG week 1. The same equation is necessary for the control gene at week 1 value (GAPDH).
+
+
+```{r, efficiencies per gene in the data1 dataframe}
+
+
+#Sort the data1 dataframe alphabetically so it matches the order of the Av_Eff dataframe
+data1<-data1[order(data1$GENE),]
+
+#Calculate expression
+data1 <-data1 %>%
+  mutate(Expression=Eff^mean_Cq)
+```
+
+
+Get the average Expression values for all genes for CONTROL WEEK 1, this will create a "calibrator" value, the mean expression per gene at week 1. Then, the expression per gene are extracted in new dataframes.
+
+```{r,CALIBRATOR Cq VALUES}
+Calibrators<-data1 %>%
+  group_by(GENE) %>%
+  filter(WEEK==1,GENERAL_GROUP=='CG')%>%
+    summarize(Baseline=mean(Expression))
+
+
+#Values in new dataframes
+#Data frames per gene
+GAPDH<-data1 %>%
+  filter(GENE %in% 'GAPDH') 
+
+VEGF<- data1 %>%
+    filter(GENE %in% 'VEGFA')
+
+HIF_1<- data1 %>%
+    filter(GENE %in% 'HIF-1a')
+
+RPTOR<- data1 %>%
+    filter(GENE %in% 'RPTOR')
+
+#Pasting the calibrator values in each dataframe
+
+GAPDH<-GAPDH %>%
+    mutate(Baseline=as.numeric(rep(Calibrators[3,2])))
+
+VEGF<-VEGF%>%
+  mutate(Baseline=as.numeric(rep(Calibrators[9,2])))
+
+
+HIF_1<-HIF_1 %>%
+    mutate(Baseline=as.numeric(rep(Calibrators[4,2])))
+
+RPTOR<-RPTOR %>%
+    mutate(Baseline=as.numeric(rep(Calibrators[6,2])))
+
+
+#Pasting the GAPDH sample expression
+
+VEGF$GAPDH_ex<-GAPDH$Expression
+VEGF$GAPDH_Baseline<-GAPDH$Baseline
+
+HIF_1$GAPDH_ex<-GAPDH$Expression
+HIF_1$GAPDH_Baseline<-GAPDH$Baseline
+
+RPTOR$GAPDH_ex<-GAPDH$Expression
+RPTOR$GAPDH_Baseline<-GAPDH$Baseline
+
+#Calculating Ratios
+
+VEGF<-VEGF%>%
+  mutate(Ratio=(Baseline/Expression)/(GAPDH_Baseline/GAPDH_ex))
+
+HIF_1<-HIF_1%>%
+  mutate(Ratio=(Baseline/Expression)/(GAPDH_Baseline/GAPDH_ex))
+
+RPTOR<-RPTOR%>%
+  mutate(Ratio=(Baseline/Expression)/(GAPDH_Baseline/GAPDH_ex))
+
+
+  
+```
+
+In the original dataframe, the mean Ratio for CG at week 1 was always 1 because I only had two samples. Adding more samples moves the mean beyond 1 and I will normalize all ratio expression to the CG week 1 expression. In other words, all the ratios need to be normalized to CG week 1 ratio expression, which will make the mean of CG at week 1 effectively 1. First, all the gene dataframes are merged in a single dataframe and then extract the mean values of CG at week to normalize the values.
+
+```{r, ratio normalization}
+Norm<-bind_rows(VEGF,HIF_1,RPTOR)%>%
+  group_by(GENE) %>%
+  filter(WEEK==1,GENERAL_GROUP=='CG')%>%
+    summarize(Norm_Ratio=mean(Ratio))
+  
+# Create the "Normalized ratio column by dividing each Ratio of expression by the CG week 1 values
+
+VEGF<-VEGF%>%
+  mutate(Norm_ratio=Ratio/Norm$Norm_Ratio[3])
+
+HIF_1<-HIF_1%>%
+  mutate(Norm_ratio=Ratio/Norm$Norm_Ratio[1])
+
+RPTOR<-RPTOR%>%
+  mutate(Norm_ratio=Ratio/Norm$Norm_Ratio[2])
+
+```
+
+
+
+Finally, the results are plotted: Using the mean value at each time point, the original values per sample (as points) and errorbars indicating $\pm$ 1 Standard deviation.
+
+
+
+```{r,plots with errorbars for +/- 1 SD,message=FALSE,echo=FALSE,fig.width=10,fig.height=10}
+pd<-position_dodge(0.8)
+sz<-2
+txt<-20
+thm1<-scale_color_viridis_d(option="turbo",end=0.7)
+thm1<-scale_color_scico_d(palette="vik",end=0.7)
+
+my_theme = theme(
+  axis.title.x = element_text(size = txt),
+  axis.text.x = element_text(size = txt),
+  axis.title.y = element_text(size = txt))
+
+g1<-VEGF%>%
+  group_by(GENERAL_GROUP,WEEK)%>%
+  summarize(m=median(Norm_ratio),
+            s=sd(Norm_ratio)) %>%
+  ggplot(aes(x=WEEK,
+             y=m,
+             group=GENERAL_GROUP,
+             color=GENERAL_GROUP,
+              ))+
+  geom_errorbar(aes(ymin=m-s,
+                    ymax=m+s),
+                size=sz-1,
+                width=0.4,
+                position=pd,
+                show.legend=FALSE)+
+  geom_line(size=sz,
+            position=pd,
+                show.legend=FALSE)+
+  geom_point(data=VEGF,
+             aes(x=WEEK,y=Ratio,color=GENERAL_GROUP),
+             size=sz+2,
+             position=pd,
+             alpha=0.6,
+                show.legend=FALSE)+
+  #geom_label(data=VEGF,
+             #aes(x=WEEK,y=Ratio,label=SAMPLE)
+              # )+
+  ggtitle('VEGF')+
+    theme_classic()+
+    my_theme+
+  labs(x='Week',y='Normalized \n relative expression')+
+    scale_y_continuous(breaks=seq(0,2,0.5))+
+  thm1
+
+
+
+
+g2<-HIF_1%>%
+  group_by(GENERAL_GROUP,WEEK)%>%
+  summarize(m=median(Norm_ratio),
+            s=sd(Norm_ratio)) %>%
+  ggplot(aes(x=WEEK,
+             y=m,
+             group=GENERAL_GROUP,
+             color=GENERAL_GROUP,
+              ))+
+  geom_errorbar(aes(ymin=m-s,
+                    ymax=m+s),
+                size=sz-1,
+                width=0.4,
+                position=pd,
+                show.legend=FALSE)+
+  geom_line(size=sz,
+            position=pd,
+                show.legend=FALSE)+
+  geom_point(data=HIF_1,
+             aes(x=WEEK,y=Ratio,color=GENERAL_GROUP),
+             size=sz+2,
+             position=pd,
+             alpha=0.6,
+                show.legend=FALSE)+
+  #geom_label(data=VEGF,
+             #aes(x=WEEK,y=Ratio,label=SAMPLE)
+              # )+
+  ggtitle('HIF-1a')+
+  theme_classic()+
+    my_theme+
+  labs(x='Week',y='Normalized \n relative expression')+
+    scale_y_continuous(breaks=seq(0,2,0.5))+
+  thm1
+
+
+
+g3<-RPTOR%>%
+  group_by(GENERAL_GROUP,WEEK)%>%
+  summarize(m=median(Norm_ratio),
+            s=sd(Norm_ratio)) %>%
+  ggplot(aes(x=WEEK,
+             y=m,
+             group=GENERAL_GROUP,
+             color=GENERAL_GROUP,
+              ))+
+  geom_errorbar(aes(ymin=m-s,
+                    ymax=m+s),
+                size=sz-1,
+                width=0.4,
+                position=pd,
+                show.legend=FALSE)+
+  geom_line(size=sz,
+            position=pd)+
+  geom_point(data=RPTOR,
+             aes(x=WEEK,y=Ratio,color=GENERAL_GROUP),
+             size=sz+2,
+             position=pd,
+             alpha=0.6,)+
+  #geom_label(data=VEGF,
+             #aes(x=WEEK,y=Ratio,label=SAMPLE)
+              # )+
+  ggtitle('RPTOR')+
+  theme_classic()+
+ my_theme+
+  labs(x='Week',y='Normalized \n relative expression')+
+    scale_y_continuous(breaks=seq(0,2,0.5))+
+  thm1
+
+g1+g2+g3
+```
+
+
+```{r, PLOT WITH STANDARD ERROR OF THE MEAN IN ERRORBARS}
+
+pd<-position_dodge(0.8)
+sz<-2
+txt<-20
+thm1<-scale_color_viridis_d(end=0.8)
+
+h1<-VEGF%>%
+  group_by(GENERAL_GROUP,WEEK)%>%
+  summarize(m=mean(Ratio),
+            se=sd(Ratio)/sqrt(length(Ratio))) %>%
+  ggplot(aes(x=WEEK,
+             y=m,
+             group=GENERAL_GROUP,
+             color=GENERAL_GROUP,
+              ))+
+  geom_errorbar(aes(ymin=m-se,
+                    ymax=m+se),
+                size=0.5,
+                width=0.4,position=pd)+
+  geom_line(size=0.5,
+            position=pd)+
+  geom_point(data=VEGF,
+             aes(x=WEEK,y=Ratio,color=GENERAL_GROUP),
+             size=sz,
+             position=pd,
+             alpha=0.6)+
+  ggtitle('VEGF')+
+  theme(plot.title = element_text(size = txt, 
+                                  face = "bold"),
+        text=element_text(size=txt))+
+  theme_classic()+
+  labs(x='Week',y='Relative expression')+
+  thm1
+
+h1
+
+```
